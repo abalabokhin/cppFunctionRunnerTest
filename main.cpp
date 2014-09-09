@@ -6,6 +6,8 @@ struct RunningSettings {
     int b;
 };
 
+using KernelRunningSettings = RunningSettings;
+
 template <class Fn> class FunctionRunner
 {
 public:
@@ -45,48 +47,20 @@ private:
         return fn;
     }
 
-    template<typename T, typename... Tail> std::function<void(Tail... tail, RunningSettings)> AddArgs(std::function<void(T, Tail... tail, RunningSettings)> fn, T head, Tail... tail) {
+    template<typename ArgsT, typename FuncArgsT, typename... ArgsTail, typename... FuncArgsTail>
+    std::function<void(FuncArgsTail... funcTail, RunningSettings)> AddArgs(std::function<void(FuncArgsT, FuncArgsTail... funcTail, RunningSettings)> fn, ArgsT head, ArgsTail... tail) {
         return AddArgs(SetArg(fn, head), tail...);
     }
 
-    template <typename T, typename... Tail> std::function<void(Tail... tail, RunningSettings)> SetArg(std::function<void(T, Tail... tail, RunningSettings)> fn, T value) {
-        return std::bind(fn, std::placeholders::_1, value);
+    template <typename ArgsT, typename FuncArgsT, typename... Tail>
+    std::function<void(Tail... tail, RunningSettings)> SetArg(std::function<void(FuncArgsT, Tail... tail, RunningSettings)> fn, ArgsT value) {
+        return std::bind(fn, value, std::placeholders::_1);
     }
 
     Fn * function;
 };
 
-template <class Fn> class IntFunctionRunner
-{
-public:
-    IntFunctionRunner(Fn * fn)
-            : function(fn)
-    {}
-
-    template<typename... Values> void Run(int rs, Values... values) {
-        std::function<void(int)> newFn = AddArgs(std::function<Fn>(function), values...);
-        for (int i = 0; i < rs; ++i) {
-            newFn(i);
-        }
-    }
-
-private:
-    std::function<void(int)> AddArgs(std::function<void(int)> fn) {
-        return fn;
-    }
-
-    template<typename T, typename... Tail> std::function<void(Tail... tail, int)> AddArgs(std::function<void(T, Tail... tail, int)> fn, T head, Tail... tail) {
-        return AddArgs(SetArg(fn, head), tail...);
-    }
-
-    template <typename T, typename... Tail> std::function<void(Tail... tail, int)> SetArg(std::function<void(T, Tail... tail, int)> fn, T value) {
-        return std::bind(fn, std::placeholders::_1, value);
-    }
-
-    Fn * function;
-};
-
-void funcA(int a, int b, std::string const & c, RunningSettings i) {
+void funcA(int a, int b/*, std::string const & c*/, RunningSettings i) {
     std::cout << "funcA " << a + b << std::endl;
 }
 
@@ -94,18 +68,13 @@ void funcB(int a, RunningSettings i) {
     std::cout << "funcB " << a << std::endl;
 }
 
-void funcC(int a, int i) {
-    std::cout << "funcC " << a << std::endl;
-}
-
 int main() {
     FunctionRunner<decltype(funcA)> runnerA(funcA);
-    runnerA.Run(RunningSettings{3, 1}, 3, 4, "fg");
+    runnerA.Run(RunningSettings{3, 1}, 3, 4);
 
-    RSFunctionRunner<decltype(funcB)> runnerB_(funcB);
-    runnerB_.Run(RunningSettings{2, 1}, 3);
+    RSFunctionRunner<decltype(funcA)> runnerB_(funcA);
+    int a = 6;
+    runnerB_.Run(RunningSettings{2, 1}, a, 34);
 
-    IntFunctionRunner<decltype(funcC)> runnerC_(funcC);
-    runnerC_.Run(2, 3);
     return 0;
 }
